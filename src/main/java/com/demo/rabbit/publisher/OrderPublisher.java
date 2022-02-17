@@ -11,8 +11,10 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 @RestController
 @RequestMapping("/order")
@@ -39,20 +41,21 @@ public class OrderPublisher {
 
     @PostMapping("/send")
     public String sendOderProd(@RequestBody Product product) {
-        rabbitTemplate.convertAndSend(MessagingConfig.EXCHANGE , MessagingConfig.ROUTING , product);
+        Gson g = new Gson();
+        rabbitTemplate.convertAndSend(MessagingConfig.EXCHANGE , MessagingConfig.ROUTING , g.toJson(product));
 
         return "Success !!";
     }
 
     @PostMapping("/received")
-    public Product receivedOderProd(@RequestBody String products) {
+    public Product receivedOderProd(@RequestBody String products) throws IOException, TimeoutException {
         user.consumeMessageFromQueue(products);
         // Send Object from Partner:
         // Send String from partner:
         Gson g = new Gson();
         Product product = g.fromJson(products , Product.class);
         productService.createProd(product);
-
+        user.getDataFromRabbitmq();
         return product;
     }
 }
